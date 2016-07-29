@@ -1,4 +1,42 @@
 var NeoBug = (function () {
+    function insertDataIntoInput(input) {
+        var label = $('label[for="' + input.attr('id') + '"]');
+        input.focus();
+        if (input.attr('type') == 'text') {
+
+            if (label.length <= 0) {
+                label = input.parent().parent().find('label');
+                errorMessage("NeoBug says: the input below does not have a clear label! Finding closest label available...");
+
+                if (label.length <= 0) {
+                    errorMessage("NeoBug says: the input below does not have a clear label, and I could not find an usable label replacement!");
+                    input.val("No Label!");
+                }
+
+                console.info(input);
+            }
+
+            input.val(discoverData(input.attr('type'), label.text()));
+        }
+        if (input.attr('type') == 'radio') {
+            var radioGroupName = input.attr('name');
+            if ($('input[name="' + radioGroupName + '"]').first().prop('checked')) {
+                if (Math.random() <= .5) {
+                    label.click();
+                }
+            } else {
+                label.click();
+            }
+
+        }
+        if (input.attr('type') == 'checkbox') {
+            input.click();
+        }
+        if (input.is('select')) {
+            input.val(input.find('option').last().attr('value')).selectric('refresh');
+        }
+    }
+
     var petNames = [
         "Fido",
         "Alexander",
@@ -35,65 +73,17 @@ var NeoBug = (function () {
         console.log('%c ' + msg + ' ', 'background: #222; color: #FFF; font-size:21px;');
     }
 
-    function fillData() {
+    function testFormFields() {
         console.info("Neobug is filling out any available inputs, and making sure they all have a label attached to them.");
         var inputs = $('input, select');
         var missingLabels = 0;
         inputs.each(function (i) {
             var input = $(this);
-            var label = $('label[for="' + input.attr('id') + '"]');
 
             setTimeout(function () {
-
-                input.focus();
-                if (input.attr('type') == 'text') {
-
-                    if (label.length <= 0) {
-                        label = input.parent().parent().find('label');
-                        console.warn("NeoBug says: the input below does not have a clear label! Finding closest label available...");
-
-                        missingLabels++;
-                        if (label.length <= 0) {
-                            console.error("NeoBug says: the input below does not have a clear label, and I could not find an usable label replacement!");
-                            input.val("No Label!");
-                        }
-                        
-                        console.info(input);
-                        console.log("---");
-                    }
-
-                    input.val(discoverData(input.attr('type'), label.text()));
-                }
-                if (input.attr('type') == 'radio') {
-                    var radioGroupName = input.attr('name');
-                    if ($('input[name="' + radioGroupName + '"]').first().prop('checked')) {
-                        if (Math.random() <= .5) {
-                            label.click();
-                        }
-                    } else {
-                        label.click();
-                    }
-                    
-                }
-                if (input.attr('type') == 'checkbox') {
-                    input.click();
-                }
-                if (input.is('select')) {
-                    input.val(input.find('option').last().attr('value')).selectric('refresh');
-                }
+                insertDataIntoInput(input);
             }, 100 * i);
         });
-
-
-        //Error Reporting
-        setTimeout(function () {
-
-            if (missingLabels > 0) {
-                errorMessage('There are '+missingLabels+' inputs without labels!');
-            } else {
-                successMessage('All inputs have a label!');
-            }
-        }, 100 * inputs.length + 500)
 
     }
 
@@ -150,11 +140,13 @@ var NeoBug = (function () {
                 return "MR J R DOE";
             }
             if (searchCrit.indexOf('account number') >= 0) {
-                return "4757 1569 8549 8756";
+                return "12345678";
             }
-
             if (searchCrit.indexOf('sort code') >= 0) {
                 return "11-11-11";
+            }
+            if (searchCrit.indexOf('reference code') >= 0) {
+                return "";
             }
             if (searchCrit.indexOf('pet') >= 0 && searchCrit.indexOf('name') >= 0) {
                 return petNames[Math.round(Math.random()*petNames.length)];
@@ -165,13 +157,12 @@ var NeoBug = (function () {
         }
     }
 
-    function testImages() {
+    function checkForImageAlts() {
         console.info("Neobug is testing all your images for alt tags.")
         var missingAlts = 0;
         $('img').each(function () {
             if ($(this).attr('alt') == "" || typeof $(this).attr('alt') == 'undefined') {
                 console.warn("NeoBug says: this image does not have an alt tag!");
-                console.log($(this));
                 missingAlts++;
             }
         })
@@ -185,15 +176,64 @@ var NeoBug = (function () {
         return missingAlts;
     }
 
+    function checkForHtmlLangAttribute() {
+        console.info("Neobug is testing to ensure that your html tag has a language attribute attached");
+        if ($('html').attr('lang') == "" || typeof $('html').attr('lang') === 'undefined') {
+            errorMessage("Neobug found that your HTML element does not contain a lang tag!");
+        }
+    }
+
+    function checkForEmptyLinks() {
+        var errors = 0;
+        $('a').each(function () {
+            if ($(this).text() == "") {
+                errors++;
+                $(this).css('border', '1px solid red');
+            }
+        })
+        if (errors > 0) {
+            errorMessage("NeoBug found " + errors + " a tags without text inside them!");
+        }
+    }
+
+    function checkForTagValidity() {
+        var errors = 0;
+        if ($('strike').length > 0) {
+            errorMessage("The <strike> tag is used " + $('strike').length + " times! Consider using <del> or <ins>");
+            errors++;
+        }
+        if ($('b').length > 0) {
+            errorMessage("The <b> tag is used " + $('b').length + " times! Consider using <strong>")
+            errors += $('b').length;
+        }
+        if ($('i').length > 0) {
+            errorMessage("The <i> tag is used " + $('i').length + " times! Consider using <em>")
+            errors += $('i').length
+        }
+        if ($('[style]').length > 0) {
+            errorMessage("Try not to use inline styling! We found " + $('[style]').length + " occurances of this.");
+            errors++;
+        }
+        if ($('blink').length > 0 || $('marquee').length > 0) {
+            errorMessage("Please burn this website. No <blink> or <marquee> tags. Ever.");
+            errors++;
+        }
+        if (errors <= 0) {
+            successMessage("All tags are valid!");
+        }
+        
+    }
+
     function run() {
         neutralMessage('---------NEOBUG IS NOW ANALYSING--------- ');
-        fillData();
-        testImages();
+        testFormFields();
+        checkForImageAlts();
+        checkForHtmlLangAttribute();
+        checkForEmptyLinks();
+        checkForTagValidity();
     }
 
     var publicApi = {
-        fillData: fillData,
-        testImages: testImages,
         run: run
     };
 
